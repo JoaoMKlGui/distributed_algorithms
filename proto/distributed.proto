@@ -1,0 +1,36 @@
+syntax = "proto3";
+package distributed;
+
+// Messages
+message LamportMsg {
+  int64 clock = 1;
+  int32 from_id = 2;
+  string payload = 3;
+}
+
+message Empty {}
+
+message ElectionMsg {
+  int32 from_id = 1;
+}
+
+message OkMsg {
+  int32 from_id = 1;
+}
+
+message CoordinatorMsg {
+  int32 leader_id = 1;
+}
+
+// Node service with all RPCs used by the server and client
+service Node {
+  rpc SendLamport(LamportMsg) returns (Empty);
+  rpc SendElection(ElectionMsg) returns (Empty);
+  rpc SendOk(OkMsg) returns (Empty);
+  rpc SendCoordinator(CoordinatorMsg) returns (Empty);
+  rpc Health(Empty) returns (Empty);
+
+  // helpers for tests ( StartElection e TriggerInternal )
+  rpc StartElection(Empty) returns (Empty);
+  rpc TriggerInternal(Empty) returns (Empty);
+}
