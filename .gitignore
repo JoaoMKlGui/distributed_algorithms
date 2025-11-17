@@ -1,0 +1,7 @@
+.vscode/
+__pycache__/
+test/
+distributed_pb2_grpc.py
+distributed_pb2.py
+node-*
+run_local.sh
