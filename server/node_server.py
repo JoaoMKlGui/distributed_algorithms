@@ -74,6 +74,9 @@ class NodeServicer(distributed_pb2_grpc.NodeServicer):
         # For graceful stopping of waiting loops
         self._stop = False
 
+        # Metrics
+        self.violations = 0
+
         # Start a background thread to periodically announce status (for debug)
         t = threading.Thread(target=self._status_printer, daemon=True)
         t.start()
@@ -85,9 +88,12 @@ class NodeServicer(distributed_pb2_grpc.NodeServicer):
         """
         with self.lock:
             old = self.local_clock
+            prev = self.local_clock
             self.local_clock = max(self.local_clock, request.clock) + 1
+            if request.clock < prev:
+                self.violations += 1
             lc = self.local_clock
-        log("receive_lamport", from_id=request.from_id, recv_clock=request.clock, local_clock=lc, payload=request.payload)
+        log("receive_lamport", from_id=request.from_id, recv_clock=request.clock, local_clock=lc, n_violations=self.violations, payload=request.payload)
         return distributed_pb2.Empty()
 
     # ========== Bully RPCs ==========
