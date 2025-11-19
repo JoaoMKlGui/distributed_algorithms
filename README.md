@@ -16,7 +16,7 @@ Then, set a project and enable further useful services:
 gcloud config set project YOUR_PROJECT_ID
 gcloud services enable compute.googleapis.com cloudbuild.googleapis.com
 ```
-From now on, we'll provide examples considering the project name `neural-service-478119-k0`, but in your machine you should adapt the name sto your project.
+From now on, we'll provide examples considering the project name `neural-service-478119-k0`, but in your machine you should adapt the name to your project.
 
 ## Build the image
 Execute the command
