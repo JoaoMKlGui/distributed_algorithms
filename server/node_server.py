@@ -92,7 +92,7 @@ class NodeServicer(distributed_pb2_grpc.NodeServicer):
             old = self.local_clock
             prev = self.local_clock
             self.local_clock = max(self.local_clock, request.clock) + 1
-            if request.clock < prev:
+            if request.clock > prev:
                 self.violations += 1
             lc = self.local_clock
         log("receive_lamport", from_id=request.from_id, recv_clock=request.clock, local_clock=lc, n_violations=self.violations, payload=request.payload)

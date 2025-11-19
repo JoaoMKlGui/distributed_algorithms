@@ -9,7 +9,7 @@ Regular use:
 Examples:
   python client/test_runner.py --trigger-internal --target 127.0.0.1:50051 --count 10 --delay 0.2
   python client/test_runner.py --start-election --target 127.0.0.1:50051
-  python client/test_runner.py --send-lamport --target 127.0.0.1:50051 --from-id 9 --count 5
+  python client/test_runner.py --send-lamport --target 127.0.0.1:50051 --from-id 9 --count 5 --delay 0.3
 """
 import argparse
 import time
