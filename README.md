@@ -3,7 +3,7 @@ This project aims to implement the Bully-Election and the Lamport Clock algorith
 
 The program was developed to run on Google Cloud with three Virtual Machines located on three different regions (us-central1-a, europe-west1-b, southamerica-east1-b).
 
-# How to run
+# How to configure the cloud
 
 ## Access Google Cloud
 
@@ -26,7 +26,7 @@ gcloud builds submit --tag gcr.io/neural-service-478119-k0/ds-node:latest --proj
 Here, the Cloud Build will utilize the `Dockerfile` to build an image and upload it to the Container Registry (gcr.io) with the name `gcr.io/neural-service-478119-k0/ds-node:latest`.
 
 ## Create static external IPs (NAT / public IP) for each region
-As our scripts require nodes to communicate between themselves, establishing a static IP for each VM is essential. In order to so, run the commands below:
+As our project require nodes to communicate between themselves, establishing a static External IPs for each VM is essential. In order to so, run the commands below:
 ```bash
 gcloud compute addresses create node-us-static-ip --region=us-central1 --project=neural-service-478119-k0
 
@@ -34,6 +34,8 @@ gcloud compute addresses create node-eu-static-ip --region=europe-west1 --projec
 
 gcloud compute addresses create node-br-static-ip --region=southamerica-east1 --project=neural-service-478119-k0
 ```
+
+Obs.: An alternative to defining these static External IPs is to utilize the VM's Internal IPs to establish communication.
 
 ## Create each VM with the container and the static IP
 Now we'll run the commands to create three VMs, one for each region, and already establish a container running within them to execute the image previously uploaded to the registry. Additionally, each will have its own static IP and all of them will be set with the tag `ds-node`. To avoid unnecessary expenses, the machines will run on a `e2-standard-4`. Environment variables will be set with a `NODE_ID` and a `PORT`, which will be by default `50051` - the standard port for the gRPC protocol. However, afterwards the `PEERS` environment variable will also need to be set, so it will be further updated.
@@ -124,27 +126,6 @@ gcloud compute instances update-container node-br \
   --project=neural-service-478119-k0
 ```
 
-
-## Test the nodes utilizng the `test_runner.py`
-In order to send messages to the nodes and visualize their behavior when making an election or updating the Lamport Clock, one can run the following commands:
-```bash
-python client/test_runner.py --target IP_US:50051 --trigger-internal --count 10 --delay 0.2
-
-python client/test_runner.py --target IP_EU:50051 --start-election
-
-python client/test_runner.py --target IP_BR:50051 --send-lamport --from-id 99 --count 5
-```
-### Important note
-If you chose to run the project with the External IPs, you can run these commands from your local machine (and put the External IPs in place of `IP_US`, `IP_EU` and `IP_BR`). However, if you decided to proceed utilizng Internal IPs, you first need to create a SSH tunnel to the VM from your local, and then send the command. In order to do it, you have firstly to open the tunnel:
-```bash
-gcloud compute ssh node-us --zone=us-central1-a --project=neural-service-478119-k0 -- \
-  -L 50051:INTERNAL_US_IP:50051
-```
-Then, you have to open another terminal and execute:
-```bash
-python client/test_runner.py --target localhost:50051 --trigger-internal --count 10 --delay 0.2
-```
-
 ## How to access the VM and visualize logs
 
 To get into the VM, you can utilize SSH:
@@ -171,3 +152,32 @@ gcloud compute instances delete node-us \
   --project=neural-service-478119-k0
 ```
 Obviously, you need to change the command to use the name and zone of the machine you want to delete.
+
+# How to run
+
+After configuring the cloud, to visualize our project working in practice, we recommend you to open four different terminals:
+- one for each VM, in which you would access the machine through SSH (as shown above) and see its logs;
+- another to trigger tests from your machine (in case of utilizing External IPs)
+
+## Testing the nodes utilizng the `test_runner.py`
+In order to send messages to the nodes and visualize their behavior when making an election or updating the Lamport Clock, one can run the following commands:
+```bash
+python client/test_runner.py --target IP_US:50051 --trigger-internal --count 10 --delay 0.2
+
+python client/test_runner.py --target IP_EU:50051 --start-election
+
+python client/test_runner.py --target IP_BR:50051 --send-lamport --from-id 99 --count 5 --delay 0.2
+```
+
+The first simulates `--count` internal events on the machine specified by `--target`. Each event increases the local clock and sends a message to a randomly selected peer. The `--delay` specifies how many seconds should pass between one event and another. The second test triggers the election process on the `--target` node. The last one simulates the delivery of `--count` messages comming from a node with ID specified by `--from-id`. In this case, the `delay` is the simulated elapsed time between the delivery of a message and another. Moreover, the messages are delivered with a clock defined as a randomly selected integer between 1 and 50.
+
+### Important note
+If you chose to run the project with the External IPs, you can run these commands from your local machine (and put the External IPs in place of `IP_US`, `IP_EU` and `IP_BR`). However, if you decided to proceed utilizng Internal IPs, you first need to create a SSH tunnel to the VM from your local, and then send the command. In order to do it, you have firstly to open the tunnel:
+```bash
+gcloud compute ssh node-us --zone=us-central1-a --project=neural-service-478119-k0 -- \
+  -L 50051:INTERNAL_US_IP:50051
+```
+Then, you have to open another terminal and execute:
+```bash
+python client/test_runner.py --target localhost:50051 --trigger-internal --count 10 --delay 0.2
+```
