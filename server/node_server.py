@@ -26,6 +26,7 @@ sys.path.append(".")
 # generated from proto; assumes you ran grpc_tools.protoc to create them
 import distributed_pb2
 import distributed_pb2_grpc
+import time
 
 # configuration
 NODE_ID = int(os.environ.get("NODE_ID", "1"))
@@ -76,6 +77,7 @@ class NodeServicer(distributed_pb2_grpc.NodeServicer):
 
         # Metrics
         self.violations = 0
+        self.n_failed_elections = 0
 
         # Start a background thread to periodically announce status (for debug)
         t = threading.Thread(target=self._status_printer, daemon=True)
@@ -158,7 +160,7 @@ class NodeServicer(distributed_pb2_grpc.NodeServicer):
             peer = random.choice(PEERS)
             try:
                 self._send_lamport_to_peer(peer, payload=f"auto from {NODE_ID}")
-                log("trigger_sent_lamport", to=peer["id"], to_addr=peer["addr"], local_clock=lc)
+                log("trigger_sent_lamport", to=peer["id"], to_addr=peer["addr"], local_clock=self.local_clock)
             except Exception as e:
                 log("trigger_send_failed", to=peer["id"], error=str(e))
         return distributed_pb2.Empty()
@@ -181,12 +183,17 @@ class NodeServicer(distributed_pb2_grpc.NodeServicer):
          - if OK -> wait for coordinator announcement for BULLY_COORD_WAIT seconds, otherwise restart election
         """
         log("election_starting")
+        # Define initial time
+        start_time = time.perf_counter()
         self.election_in_progress = True
         self._ok_received_event.clear()
         higher_peers = [p for p in PEERS if p["id"] > NODE_ID]
         if not higher_peers:
             log("no_higher_peers", action="declare_self_leader")
             self._declare_self_leader()
+            end_time = time.perf_counter()
+            elapsed_time = end_time - start_time
+            log("self_declared_leader", election_duration=f"{elapsed_time:.4f}")
             return
 
         # Send Election messages to higher peers
@@ -203,6 +210,9 @@ class NodeServicer(distributed_pb2_grpc.NodeServicer):
             # no OKs -> become leader
             log("no_ok_received", action="declare_self_leader")
             self._declare_self_leader()
+            end_time = time.perf_counter()
+            elapsed_time = end_time - start_time
+            log("self_declared_leader", election_duration=f"{elapsed_time:.4f}")
             return
         else:
             log("ok_received", action="waiting_for_coordinator")
@@ -211,14 +221,17 @@ class NodeServicer(distributed_pb2_grpc.NodeServicer):
             poll_interval = 0.2
             while coord_waited < BULLY_COORD_WAIT:
                 if self.leader is not None:
-                    log("detected_coordinator", leader=self.leader)
+                    end_time = time.perf_counter()
+                    elapsed_time = end_time - start_time
+                    log("detected_coordinator", leader=self.leader, election_duration=f"{elapsed_time:.4f}")
                     self.election_in_progress = False
                     self._ok_received_event.clear()
                     return
                 time.sleep(poll_interval)
                 coord_waited += poll_interval
             # if we got here, no coordinator arrived -> restart election
-            log("no_coordinator_after_ok", action="restart_election")
+            self.n_failed_elections += 1
+            log("no_coordinator_after_ok", action="restart_election", n_failed_elections=self.n_failed_elections)
             self._ok_received_event.clear()
             # simple backoff
             time.sleep(0.5)
