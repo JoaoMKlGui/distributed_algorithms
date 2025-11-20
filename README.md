@@ -155,7 +155,12 @@ Obviously, you need to change the command to use the name and zone of the machin
 
 # How to run
 
-After configuring the cloud, to visualize our project working in practice, we recommend you to open four different terminals:
+Initially, from the root of the repository, run the following command to generate the scripts `distributed_pb2.py` and `distributed_pb2_grpc.py`:
+```bash
+python -m grpc_tools.protoc -I./proto --python_out=. --grpc_python_out=. proto/distributed.proto
+```
+
+Afterwards, you must configure the cloud following the steps specified above. Now, to visualize our project working in practice, we recommend you to open four different terminals:
 - one for each VM, in which you would access the machine through SSH (as shown above) and see its logs;
 - another to trigger tests from your machine (in case of utilizing External IPs)
 
